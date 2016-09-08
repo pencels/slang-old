@@ -3,20 +3,28 @@
 
 using namespace std;
 
+inline char Lexer::eat() {
+	return (curr_char = file.get());
+}
+
+inline char Lexer::peek() {
+	return file.peek();
+}
+
 Token Lexer::get_token() {
     // Loop through the stream of characters.
     while (true) {
         // Skip whitespace.
         if (isblank(curr_char)) {
-            curr_char = file.get();
+            eat();
             continue;
         }
 
         // Skip line comments.
-        if (curr_char == '-' && file.peek() == '-') {
+        if (curr_char == '-' && peek() == '-') {
             // Eat rest of line for comment.
             do
-                curr_char = file.get();
+                eat();
             while (curr_char != EOF &&
                    curr_char != '\n' &&
                    curr_char != '\r');
@@ -24,14 +32,13 @@ Token Lexer::get_token() {
             if (curr_char == EOF)
                 return Token(TOK_EOF);
 
-            // curr_char = file.get(); // Eat '\n' or '\r'.
             continue;
         }
 
         // Identifiers: [A-Za-z_][A-Za-z0-9_]*
         if (isalpha(curr_char) || curr_char == '_') {
             lex_str = curr_char;
-            while (isalnum(curr_char = file.get()) || curr_char == '_')
+            while (isalnum(eat()) || curr_char == '_')
                 lex_str += curr_char;
 
             // Check against keywords:
@@ -69,44 +76,44 @@ Token Lexer::get_token() {
 
         // Strings: '"' (\\.|[^\\"])* '"'
         if (curr_char == '"') {
-            lex_str = curr_char = file.get(); // Get first char of string.
-            while ((curr_char = file.get()) != '"') {
+            lex_str = eat(); // Get first char of string.
+            while (eat() != '"') {
                 if (curr_char == '\\') {
                     lex_str += curr_char;
-                    curr_char = file.get(); // Let by escape chars.
+                    eat(); // Let by escape chars.
                 }
                 // TODO: code reduplication
                 lex_str += curr_char;
             }
 
-            curr_char = file.get(); // Eat '"'
+            eat(); // Eat '"'
             return Token(TOK_STRING, lex_str);
         }
 
         // Characters: '\' '(\\.|[^\\'])' '\''
         if (curr_char == '\'') {
-            lex_str = curr_char = file.get(); // Get first char.
-            while ((curr_char = file.get()) != '\'') {
+            lex_str = eat(); // Get first char.
+            while (eat() != '\'') {
                 if (curr_char == '\\') {
                     lex_str += curr_char;
-                    curr_char = file.get(); // Let by escape chars.
+                    eat(); // Let by escape chars.
                 }
                 // TODO: code reduplication
                 lex_str += curr_char;
             }
 
-            curr_char = file.get(); // Eat '\''
+            eat(); // Eat '\''
             return Token(TOK_CHAR, lex_str);
         }
 
         // Numbers: [0-9]*(\.[0-9]*)?
         if (isdigit(curr_char)) {
             lex_str = curr_char;
-            while (isdigit(curr_char = file.get()))
+            while (isdigit(eat()))
                 lex_str += curr_char;
-            if (curr_char == '.' && isdigit(file.peek())) {
+            if (curr_char == '.' && isdigit(peek())) {
                 lex_str += '.';
-                while (isdigit(curr_char = file.get()))
+                while (isdigit(eat()))
                     lex_str += curr_char;
             }
 
@@ -121,8 +128,8 @@ Token Lexer::get_token() {
             ret_token = Token(TOK_PLUS);
 
         else if (curr_char == '-') {
-            if (file.peek() == '>') {
-                curr_char = file.get(); // eat the '>'
+            if (peek() == '>') {
+                eat(); // eat the '>'
                 ret_token = Token(TOK_ARROW);
             } else
                 ret_token = Token(TOK_MINUS);
@@ -141,24 +148,24 @@ Token Lexer::get_token() {
             ret_token = Token(TOK_EQ);
 
         else if (curr_char == '<') {
-            if (file.peek() == '=') {
-                curr_char = file.get(); // eat the '='
+            if (peek() == '=') {
+                eat(); // eat the '='
                 ret_token = Token(TOK_LE);
             } else
                 ret_token = Token(TOK_LT);
         }
 
         else if (curr_char == '>') {
-            if (file.peek() == '=') {
-                curr_char = file.get(); // eat the '='
+            if (peek() == '=') {
+                eat(); // eat the '='
                 ret_token = Token(TOK_GE);
             } else
                 ret_token = Token(TOK_GT);
         }
 
         else if (curr_char == '.') {
-            if (file.peek() == '.') {
-                curr_char = file.get(); // eat the '.'
+            if (peek() == '.') {
+                eat(); // eat the '.'
                 ret_token = Token(TOK_ELLIPSIS);
             }
         }
@@ -179,7 +186,7 @@ Token Lexer::get_token() {
         else if (curr_char == ',')
             ret_token = Token(TOK_COMMA);
         else if (curr_char == '\n' || curr_char == '\r') {
-			if (curr_char == '\r') file.get(); // eat subsequent '\n'
+			if (curr_char == '\r') eat(); // eat subsequent '\n'
 			ret_token = Token(TOK_NL);
 		}
         else
@@ -190,7 +197,7 @@ Token Lexer::get_token() {
             return Token(TOK_EOF);
 
         // Eat the operator/delimiter character(s) and return.
-        curr_char = file.get();
+        eat();
         return ret_token;
     }
 

@@ -79,4 +79,7 @@ private:
     ifstream& file;
     char curr_char = ' ';
     string lex_str;
+
+	char eat();
+	char peek();
 };
