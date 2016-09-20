@@ -1,4 +1,5 @@
-# Slang
+# Slang [![Build Status](https://travis-ci.org/pencels/slang.svg?branch=master)](https://travis-ci.org/pencels/slang)
+
 Slang is a small language I'm designing for fun, but also with the goal of
 learning more about how compilers work (lexing, parsing, code generation...
 all that good stuff!).
