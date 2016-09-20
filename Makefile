@@ -1,7 +1,6 @@
 .PHONY: clean
 
-CC = g++
-CCFLAGS = -std=c++14
+CXXFLAGS = -std=c++14
 WFLAGS = -Wall -Werror
 SRCDIR = src
 OBJDIR = obj
@@ -10,12 +9,12 @@ LEXOBJS := $(addprefix $(OBJDIR)/lexer/,slang-lexer.o lexer.o)
 
 $(OBJDIR)/lexer/%.o : $(SRCDIR)/lexer/%.cpp
 	@echo "Compiling each source ..."
-	$(CC) -g -c $(CCFLAGS) $(WFLAGS) $< -o $@
+	$(CXX) -g -c $(CXXFLAGS) $(WFLAGS) $< -o $@
 	@echo ""
 
 slang-lexer: $(OBJDIR) $(LEXOBJS)
 	@echo "Making slang-lexer ..."
-	$(CC) -o slang-lexer $(LEXOBJS)
+	$(CXX) -o slang-lexer $(LEXOBJS)
 	@echo "Done!"
 
 $(OBJDIR):
