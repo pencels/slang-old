@@ -1,21 +1,26 @@
-.PHONY: slang clean
+.PHONY: clean
 
-CC = g++
-CCFLAGS = -std=c++14
+CXXFLAGS = -std=c++14
 WFLAGS = -Wall -Werror
-SRCS = slang-lexer.cpp lexer.cpp
-LEXOBJS = slang-lexer.o lexer.o
+SRCDIR = src
+OBJDIR = obj
+LEXSRCS := $(addprefix $(SRCDIR)/lexer/, slang-lexer.cpp lexer.cpp)
+LEXOBJS := $(addprefix $(OBJDIR)/lexer/,slang-lexer.o lexer.o)
 
-%.o: %.cpp
+$(OBJDIR)/lexer/%.o : $(SRCDIR)/lexer/%.cpp
 	@echo "Compiling each source ..."
-	$(CC) -g -c $(CCFLAGS) $(WFLAGS) $<
+	$(CXX) -g -c $(CXXFLAGS) $(WFLAGS) $< -o $@
 	@echo ""
 
-slang-lexer: $(LEXOBJS)
+slang-lexer: $(OBJDIR) $(LEXOBJS)
 	@echo "Making slang-lexer ..."
-	$(CC) -o slang-lexer $(LEXOBJS)
+	$(CXX) -o slang-lexer $(LEXOBJS)
 	@echo "Done!"
+
+$(OBJDIR):
+	@mkdir -p obj/lexer
 
 clean:
 	rm -f *.o *.exe
+	rm -rf obj
 	@echo "Clean."

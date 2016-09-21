@@ -64,7 +64,7 @@ public:
         : type(type), lexeme(lexeme) {}
     Token(TokenType type, char c)
         : type(type), lexeme(string(1, c)) {}
-    string as_string();
+    operator const char* ();
 private:
     TokenType type;
     string lexeme;
@@ -77,6 +77,10 @@ public:
 
 private:
     ifstream& file;
+    size_t lines = 1, cols = 0;
     char curr_char = ' ';
     string lex_str;
+
+	char eat();
+	char peek();
 };

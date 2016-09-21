@@ -1,22 +1,55 @@
 #include <cctype>
+#include <exception>
 #include "lexer.hpp"
 
 using namespace std;
+
+namespace {
+    const char * UNEXPECTED_EOF_STR = "Unexpected EOF parsing string literal";
+    const char * UNEXPECTED_EOF_CHR = "Unexpected EOF parsing char literal";
+};
+
+class lexer_exception : public exception {
+    string message;
+    size_t line, col;
+public:
+    lexer_exception(string message, size_t line, size_t col)
+        : message(message), line(line), col(col) {}
+    lexer_exception(const char * message, size_t line, size_t col)
+        : message(string(message)), line(line), col(col) {}
+    virtual const char * what() const noexcept {
+        return (to_string(line) + ":" + to_string(col) + " " + message).c_str();
+    }
+};
+
+inline char Lexer::eat() {
+    // Keep track of lines/cols.
+    if (curr_char == '\n') {
+        lines++;
+        cols = 0;
+    }
+    cols++;
+    return (curr_char = file.get());
+}
+
+inline char Lexer::peek() {
+    return file.peek();
+}
 
 Token Lexer::get_token() {
     // Loop through the stream of characters.
     while (true) {
         // Skip whitespace.
         if (isblank(curr_char)) {
-            curr_char = file.get();
+            eat();
             continue;
         }
 
         // Skip line comments.
-        if (curr_char == '-' && file.peek() == '-') {
+        if (curr_char == '-' && peek() == '-') {
             // Eat rest of line for comment.
             do
-                curr_char = file.get();
+                eat();
             while (curr_char != EOF &&
                    curr_char != '\n' &&
                    curr_char != '\r');
@@ -24,14 +57,13 @@ Token Lexer::get_token() {
             if (curr_char == EOF)
                 return Token(TOK_EOF);
 
-            // curr_char = file.get(); // Eat '\n' or '\r'.
             continue;
         }
 
         // Identifiers: [A-Za-z_][A-Za-z0-9_]*
         if (isalpha(curr_char) || curr_char == '_') {
             lex_str = curr_char;
-            while (isalnum(curr_char = file.get()) || curr_char == '_')
+            while (isalnum(eat()) || curr_char == '_')
                 lex_str += curr_char;
 
             // Check against keywords:
@@ -69,44 +101,60 @@ Token Lexer::get_token() {
 
         // Strings: '"' (\\.|[^\\"])* '"'
         if (curr_char == '"') {
-            lex_str = curr_char = file.get(); // Get first char of string.
-            while ((curr_char = file.get()) != '"') {
+            lex_str = ""; // Initialize as empty string.
+            eat();
+            while (curr_char != '"') {
                 if (curr_char == '\\') {
                     lex_str += curr_char;
-                    curr_char = file.get(); // Let by escape chars.
+                    eat(); // Let by escape chars.
                 }
+
+                // Error if EOF encountered.
+                if (curr_char == EOF) {
+                    throw lexer_exception(UNEXPECTED_EOF_STR, lines, cols);
+                }
+
                 // TODO: code reduplication
                 lex_str += curr_char;
+                eat();
             }
 
-            curr_char = file.get(); // Eat '"'
+            eat(); // Eat '"'
             return Token(TOK_STRING, lex_str);
         }
 
         // Characters: '\' '(\\.|[^\\'])' '\''
         if (curr_char == '\'') {
-            lex_str = curr_char = file.get(); // Get first char.
-            while ((curr_char = file.get()) != '\'') {
+            lex_str = ""; // Initialize as empty string.
+            eat();
+            while (curr_char != '\'') {
                 if (curr_char == '\\') {
                     lex_str += curr_char;
-                    curr_char = file.get(); // Let by escape chars.
+                    eat(); // Let by escape chars.
                 }
+
+                // Error if EOF encountered.
+                if (curr_char == EOF) {
+                    throw lexer_exception(UNEXPECTED_EOF_CHR, lines, cols);
+                }
+
                 // TODO: code reduplication
                 lex_str += curr_char;
+                eat();
             }
 
-            curr_char = file.get(); // Eat '\''
+            eat(); // Eat '\''
             return Token(TOK_CHAR, lex_str);
         }
 
         // Numbers: [0-9]*(\.[0-9]*)?
         if (isdigit(curr_char)) {
             lex_str = curr_char;
-            while (isdigit(curr_char = file.get()))
+            while (isdigit(eat()))
                 lex_str += curr_char;
-            if (curr_char == '.' && isdigit(file.peek())) {
+            if (curr_char == '.' && isdigit(peek())) {
                 lex_str += '.';
-                while (isdigit(curr_char = file.get()))
+                while (isdigit(eat()))
                     lex_str += curr_char;
             }
 
@@ -121,8 +169,8 @@ Token Lexer::get_token() {
             ret_token = Token(TOK_PLUS);
 
         else if (curr_char == '-') {
-            if (file.peek() == '>') {
-                curr_char = file.get(); // eat the '>'
+            if (peek() == '>') {
+                eat(); // eat the '>'
                 ret_token = Token(TOK_ARROW);
             } else
                 ret_token = Token(TOK_MINUS);
@@ -141,24 +189,24 @@ Token Lexer::get_token() {
             ret_token = Token(TOK_EQ);
 
         else if (curr_char == '<') {
-            if (file.peek() == '=') {
-                curr_char = file.get(); // eat the '='
+            if (peek() == '=') {
+                eat(); // eat the '='
                 ret_token = Token(TOK_LE);
             } else
                 ret_token = Token(TOK_LT);
         }
 
         else if (curr_char == '>') {
-            if (file.peek() == '=') {
-                curr_char = file.get(); // eat the '='
+            if (peek() == '=') {
+                eat(); // eat the '='
                 ret_token = Token(TOK_GE);
             } else
                 ret_token = Token(TOK_GT);
         }
 
         else if (curr_char == '.') {
-            if (file.peek() == '.') {
-                curr_char = file.get(); // eat the '.'
+            if (peek() == '.') {
+                eat(); // eat the '.'
                 ret_token = Token(TOK_ELLIPSIS);
             }
         }
@@ -179,24 +227,28 @@ Token Lexer::get_token() {
         else if (curr_char == ',')
             ret_token = Token(TOK_COMMA);
         else if (curr_char == '\n' || curr_char == '\r') {
-			if (curr_char == '\r') file.get(); // eat subsequent '\n'
-			ret_token = Token(TOK_NL);
-		}
-        else
-            ret_token = Token(TOK_UNK, curr_char);
+            if (curr_char == '\r') eat(); // eat subsequent '\n'
+            ret_token = Token(TOK_NL);
+        }
+
+        // Unknown character: display error
+        else {
+            throw lexer_exception(string("Unexpected char: ") + curr_char,
+                                  lines, cols);
+        }
 
         // EOF, no need to eat.
         if (curr_char == EOF)
             return Token(TOK_EOF);
 
         // Eat the operator/delimiter character(s) and return.
-        curr_char = file.get();
+        eat();
         return ret_token;
     }
 
 }
 
-string Token::as_string() {
+Token::operator const char * () {
     switch (type) {
         case TOK_EOF:    return "EOF";
         case TOK_LET:    return "LET";
@@ -208,10 +260,10 @@ string Token::as_string() {
         case TOK_EACH:   return "EACH";
         case TOK_RETURN: return "RETURN";
 
-        case TOK_IDENTIFIER: return "IDENTIFIER(" + lexeme + ")";
-        case TOK_NUMBER:     return "NUMBER(" + lexeme + ")";
-        case TOK_CHAR:       return "CHAR(" + lexeme + ")";
-        case TOK_STRING:     return "STRING(" + lexeme + ")";
+        case TOK_IDENTIFIER: return ("IDENTIFIER(" + lexeme + ")").c_str();
+        case TOK_NUMBER:     return ("NUMBER(" + lexeme + ")").c_str();
+        case TOK_CHAR:       return ("CHAR(" + lexeme + ")").c_str();
+        case TOK_STRING:     return ("STRING(" + lexeme + ")").c_str();
 
         case TOK_PLUS:    return "PLUS";
         case TOK_MINUS:   return "MINUS";
@@ -242,6 +294,6 @@ string Token::as_string() {
         case TOK_COMMA:    return "COMMA";
         case TOK_NL:       return "NL";
 
-        default:           return "@(" + lexeme + ")";
+        default:           return ("@(" + lexeme + ")").c_str();
     }
 }
